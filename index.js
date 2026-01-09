@@ -14,15 +14,37 @@ const app = express();
 /* ===============================
    CORS CONFIG
 ================================ */
+// Update CORS to be more flexible
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "https://hbtechlink.vercel.app",
+];
+
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "https://hbtechlink.vercel.app",
-    ],
+    origin: function (origin, callback) {
+      // allow requests with no origin (Postman, mobile apps)
+      if (!origin) return callback(null, true);
+
+      // allow all vercel preview deployments
+      if (
+        allowedOrigins.includes(origin) ||
+        origin.endsWith(".vercel.app")
+      ) {
+        return callback(null, true);
+      }
+
+      callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
+
+// VERY IMPORTANT
+app.options("*", cors());
 
 /* ===============================
    MIDDLEWARE

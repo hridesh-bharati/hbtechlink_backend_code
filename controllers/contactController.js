@@ -32,7 +32,7 @@ export const sendContactMessage = async (req, res) => {
     // ✅ Mail content
     const mailOptions = {
       from: `"Website Contact" <${process.env.EMAIL_USER}>`,
-      to: process.env.EMAIL_USER, // admin ko mail
+      to: process.env.EMAIL_USER, 
       replyTo: email,
       subject: `📩 New Contact: ${subject}`,
       html: `
