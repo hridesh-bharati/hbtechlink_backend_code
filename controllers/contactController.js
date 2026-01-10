@@ -7,7 +7,7 @@ export const sendContactMessage = async (req, res) => {
 
     console.log("📩 Contact request received");
 
-    // 1️⃣ Save to DB FIRST (fast)
+    // 1️⃣ Save to DB
     const contact = await Contact.create({
       name,
       email,
@@ -17,20 +17,20 @@ export const sendContactMessage = async (req, res) => {
 
     console.log("✅ Saved to DB");
 
-    // 2️⃣ Create transporter (NO verify)
-    const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
+    let emailStatus = "skipped";
 
-    // 3️⃣ Send mail with TIMEOUT protection
-    await Promise.race([
-      transporter.sendMail({
+    try {
+      const transporter = nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port: 465,
+        secure: true,
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+      });
+
+      await transporter.sendMail({
         from: `"Website Contact" <${process.env.EMAIL_USER}>`,
         to: process.env.EMAIL_USER,
         replyTo: email,
@@ -40,24 +40,30 @@ export const sendContactMessage = async (req, res) => {
           <p><b>Email:</b> ${email}</p>
           <p><b>Message:</b> ${message}</p>
         `,
-      }),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Mail timeout")), 10000)
-      ),
-    ]);
+      });
 
-    console.log("✅ Email sent");
+      emailStatus = "sent";
+      console.log("✅ Email sent");
 
+    } catch (mailErr) {
+      emailStatus = "failed";
+      console.error("⚠️ Email failed:", mailErr.message);
+    }
+
+    // ✅ ALWAYS return success
     return res.status(201).json({
       success: true,
-      message: "Message sent successfully",
+      message: "Message received successfully",
+      emailStatus,
     });
+
   } catch (error) {
     console.error("❌ CONTACT ERROR:", error.message);
 
     return res.status(500).json({
       success: false,
-      message: "Email service temporarily unavailable",
+      message: "Server error",
     });
   }
 };
+
