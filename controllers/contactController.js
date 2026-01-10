@@ -5,20 +5,9 @@ export const sendContactMessage = async (req, res) => {
   try {
     const { name, email, subject, message } = req.body;
 
-    console.log("📩 Contact request received:", {
-      name,
-      email,
-      subject,
-    });
+    console.log("📩 Contact request received");
 
-    if (!name || !email || !subject || !message) {
-      return res.status(400).json({
-        success: false,
-        message: "All fields are required",
-      });
-    }
-
-    // ✅ Save to MongoDB
+    // 1️⃣ Save to DB FIRST (fast)
     const contact = await Contact.create({
       name,
       email,
@@ -26,64 +15,49 @@ export const sendContactMessage = async (req, res) => {
       message,
     });
 
-    console.log("✅ Contact saved to DB:", contact._id);
+    console.log("✅ Saved to DB");
 
-    // ✅ Nodemailer setup
+    // 2️⃣ Create transporter (NO verify)
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
     });
 
-    // (Optional but useful)
-    await transporter.verify();
-    console.log("📧 Nodemailer transporter verified");
+    // 3️⃣ Send mail with TIMEOUT protection
+    await Promise.race([
+      transporter.sendMail({
+        from: `"Website Contact" <${process.env.EMAIL_USER}>`,
+        to: process.env.EMAIL_USER,
+        replyTo: email,
+        subject: `📩 New Contact: ${subject}`,
+        html: `
+          <p><b>Name:</b> ${name}</p>
+          <p><b>Email:</b> ${email}</p>
+          <p><b>Message:</b> ${message}</p>
+        `,
+      }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Mail timeout")), 10000)
+      ),
+    ]);
 
-    // ✅ Mail content
-    const mailOptions = {
-      from: `"Website Contact" <${process.env.EMAIL_USER}>`,
-      to: process.env.EMAIL_USER,
-      replyTo: email,
-      subject: `📩 New Contact: ${subject}`,
-      html: `
-        <h3>New Contact Message</h3>
-        <p><b>Name:</b> ${name}</p>
-        <p><b>Email:</b> ${email}</p>
-        <p><b>Subject:</b> ${subject}</p>
-        <p><b>Message:</b></p>
-        <p>${message}</p>
-      `,
-    };
+    console.log("✅ Email sent");
 
-    // ✅ Send email
-    const info = await transporter.sendMail(mailOptions);
-
-    console.log("✅ Email sent successfully");
-    console.log("📨 Message ID:", info.messageId);
-    console.log("📤 Response:", info.response);
-
-   return res.status(201).json({
-  success: true,
-  message: "Message sent & saved successfully",
-  data: contact,
-  debug: {
-    mailSent: true,
-    to: process.env.EMAIL_USER,
-    subject: subject,
-    time: new Date().toISOString(),
-  },
-});
-
-
-
+    return res.status(201).json({
+      success: true,
+      message: "Message sent successfully",
+    });
   } catch (error) {
-    console.error("❌ Contact Error:", error);
+    console.error("❌ CONTACT ERROR:", error.message);
 
     return res.status(500).json({
       success: false,
-      message: "Server error",
+      message: "Email service temporarily unavailable",
     });
   }
 };
