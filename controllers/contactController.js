@@ -5,6 +5,12 @@ export const sendContactMessage = async (req, res) => {
   try {
     const { name, email, subject, message } = req.body;
 
+    console.log("📩 Contact request received:", {
+      name,
+      email,
+      subject,
+    });
+
     if (!name || !email || !subject || !message) {
       return res.status(400).json({
         success: false,
@@ -20,6 +26,8 @@ export const sendContactMessage = async (req, res) => {
       message,
     });
 
+    console.log("✅ Contact saved to DB:", contact._id);
+
     // ✅ Nodemailer setup
     const transporter = nodemailer.createTransport({
       service: "gmail",
@@ -29,10 +37,14 @@ export const sendContactMessage = async (req, res) => {
       },
     });
 
+    // (Optional but useful)
+    await transporter.verify();
+    console.log("📧 Nodemailer transporter verified");
+
     // ✅ Mail content
     const mailOptions = {
       from: `"Website Contact" <${process.env.EMAIL_USER}>`,
-      to: process.env.EMAIL_USER, 
+      to: process.env.EMAIL_USER,
       replyTo: email,
       subject: `📩 New Contact: ${subject}`,
       html: `
@@ -46,15 +58,29 @@ export const sendContactMessage = async (req, res) => {
     };
 
     // ✅ Send email
-    await transporter.sendMail(mailOptions);
+    const info = await transporter.sendMail(mailOptions);
 
-    return res.status(201).json({
-      success: true,
-      message: "Message sent & saved successfully",
-      data: contact,
-    });
+    console.log("✅ Email sent successfully");
+    console.log("📨 Message ID:", info.messageId);
+    console.log("📤 Response:", info.response);
+
+   return res.status(201).json({
+  success: true,
+  message: "Message sent & saved successfully",
+  data: contact,
+  debug: {
+    mailSent: true,
+    to: process.env.EMAIL_USER,
+    subject: subject,
+    time: new Date().toISOString(),
+  },
+});
+
+
+
   } catch (error) {
-    console.error("Contact Error:", error);
+    console.error("❌ Contact Error:", error);
+
     return res.status(500).json({
       success: false,
       message: "Server error",

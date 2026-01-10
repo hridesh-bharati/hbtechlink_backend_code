@@ -14,20 +14,17 @@ const app = express();
 /* ===============================
    CORS CONFIG
 ================================ */
-// Update CORS to be more flexible
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:3000",
-  "https://hbtechlink.vercel.app",
+  process.env.FRONTEND_URL,
 ];
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      // allow requests with no origin (Postman, mobile apps)
       if (!origin) return callback(null, true);
 
-      // allow all vercel preview deployments
       if (
         allowedOrigins.includes(origin) ||
         origin.endsWith(".vercel.app")
@@ -35,6 +32,7 @@ app.use(
         return callback(null, true);
       }
 
+      console.log("❌ CORS BLOCKED ORIGIN:", origin);
       callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
@@ -43,8 +41,8 @@ app.use(
   })
 );
 
-// VERY IMPORTANT
 app.options("*", cors());
+
 
 /* ===============================
    MIDDLEWARE
